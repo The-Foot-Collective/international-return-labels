@@ -461,6 +461,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .empty-note{color:var(--slate-500); font-size:13px;}
 
   .footnote{margin-top:24px; font-size:12.5px; color:var(--slate-500); text-align:center;}
+  .wh-group{display:flex; flex-direction:column; gap:8px; margin-top:4px;}
+  .wh-option{display:flex; align-items:center; gap:10px; padding:11px 14px; border:1px solid var(--slate-200);
+    border-radius:8px; cursor:pointer; font-size:15px; font-weight:600; color:var(--slate-700); background:var(--white);
+    transition:border-color .12s, background-color .12s;}
+  .wh-option:hover{border-color:var(--slate-500);}
+  .wh-option.checked{border-color:var(--green-700); background:var(--green-50); color:var(--slate-800);}
+  .wh-option input{accent-color:var(--green-700); width:17px; height:17px; cursor:pointer; margin:0;}
+  .addr-preview{margin-top:18px; border:1px solid var(--slate-200); border-radius:8px; background:var(--slate-50); padding:14px 16px;}
+  .addr-title{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--slate-500); margin-bottom:10px;}
+  .addr-body{font-size:13.5px; color:var(--slate-800); line-height:1.5;}
+  .addr-row{display:flex; gap:8px; padding:1px 0;}
+  .addr-row .k{flex:0 0 100px; color:var(--slate-500); font-weight:600;}
+  .addr-row .v{color:var(--slate-800);}
   .pii{background:var(--green-50); border:1px solid #bbf7d0; border-radius:8px;
     padding:12px 14px; font-size:12.5px; color:var(--slate-700); margin-top:20px;}
   .pii strong{color:var(--green-700);}
@@ -478,6 +491,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <h2>1. Enter number</h2>
       <label class="field" for="numInput">Return Number</label>
       <input type="text" id="numInput" placeholder="e.g. GVR0012345" autocomplete="off" spellcheck="false">
+
+      <label class="field" style="margin-top:16px;">Return warehouse</label>
+      <div class="wh-group" id="whGroup">
+        <label class="wh-option"><input type="radio" name="warehouse" value="AUS"> Australia</label>
+        <label class="wh-option"><input type="radio" name="warehouse" value="UK"> United Kingdom</label>
+        <label class="wh-option"><input type="radio" name="warehouse" value="USA"> United States</label>
+      </div>
+
       <div class="err" id="errMsg"></div>
 
       <div style="margin-top:18px;">
@@ -502,6 +523,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
           <div class="instruct">Page 2 of the PDF holds the return instructions for the customer.</div>
         </div>
       </div>
+      <div class="addr-preview">
+        <div class="addr-title">Return address (page 2)</div>
+        <div class="addr-body" id="addrBody"><span class="empty-note">Select a warehouse to see the return address.</span></div>
+      </div>
     </section>
   </div>
 </div>
@@ -518,12 +543,62 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const errMsg   = document.getElementById('errMsg');
   const pdfBtn   = document.getElementById('pdfBtn');
   const pdfCanvas= document.getElementById('pdfCanvas');
+  const whRadios = document.querySelectorAll('input[name="warehouse"]');
+  const addrBody = document.getElementById('addrBody');
+  function selectedWarehouse(){
+    const el = document.querySelector('input[name="warehouse"]:checked');
+    return el ? el.value : '';
+  }
+  function updateWhHighlight(){
+    whRadios.forEach(function(r){ r.parentNode.classList.toggle('checked', r.checked); });
+  }
+
+  // Return warehouses. The address is shown on page 2 of the PDF only — never on the barcode label.
+  const WAREHOUSES = {
+    AUS: { name:'Borderless360 AUS', rows:[
+      ['Address line 1','Unit 2b / 30-40 Alfred Road'],
+      ['Suburb','Chipping Norton'],
+      ['State','NSW'],
+      ['Postcode','2170'],
+      ['Country','Australia'] ] },
+    UK: { name:'Borderless360 UK', rows:[
+      ['Address line 1','Unit A5 Groundwell Ind Estate'],
+      ['Address line 2','Stephenson Road'],
+      ['Town / City','Swindon'],
+      ['Postcode','SN25 5AX'],
+      ['Country','United Kingdom'] ] },
+    USA: { name:'Borderless360 USA', rows:[
+      ['Address line 1','1000 North 28th Ave.'],
+      ['Address line 2','Ste. 200'],
+      ['City','DFW Airport'],
+      ['State','TX'],
+      ['ZIP code','75261'],
+      ['Country','United States'] ] }
+  };
+
+  function addressRows(code){
+    const w = WAREHOUSES[code];
+    if(!w) return [];
+    return [['Company','The Foot Collective'], ['Name', w.name]].concat(w.rows);
+  }
 
   // CODE128-B can encode all printable ASCII (32–126). We keep input to that range.
   function clean(v){ return (v || '').replace(/[^\x20-\x7E]/g,'').trim(); }
 
-  function setEnabled(on){
-    pdfBtn.disabled = !on;
+  let numberValid = false;
+  function refreshButton(){
+    pdfBtn.disabled = !(numberValid && selectedWarehouse());
+  }
+
+  function updateAddressPreview(){
+    const rows = addressRows(selectedWarehouse());
+    if(!rows.length){
+      addrBody.innerHTML = '<span class="empty-note">Select a warehouse to see the return address.</span>';
+      return;
+    }
+    addrBody.innerHTML = rows.map(function(r){
+      return '<div class="addr-row"><span class="k">' + r[0] + '</span><span class="v">' + r[1] + '</span></div>';
+    }).join('');
   }
 
   // --- live preview (SVG barcode, crisp on screen) ---
@@ -534,7 +609,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     if(!val){
       barcodeA.innerHTML = '<span class="empty-note">Barcode appears here once you type a number.</span>';
-      setEnabled(false);
+      numberValid = false; refreshButton();
       return;
     }
     try{
@@ -543,11 +618,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         format:'CODE128', displayValue:false,
         width:2, height:80, margin:8, background:'#ffffff', lineColor:'#000000'
       });
-      setEnabled(true);
+      numberValid = true; refreshButton();
     }catch(e){
       barcodeA.innerHTML = '<span class="empty-note">—</span>';
       errMsg.textContent = 'That value can’t be encoded. Use standard letters and numbers.';
-      setEnabled(false);
+      numberValid = false; refreshButton();
     }
   }
 
@@ -564,7 +639,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     };
   }
 
-  function buildPdf(val){
+  function buildPdf(val, whCode){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'portrait' });
 
@@ -663,6 +738,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     p2block('This label is for our warehouse, not for postage',
       'The barcode on the first page helps our warehouse receive and match your return when it arrives. It is not a shipping label, and return postage is not pre-paid. You will still need to buy a shipping label from your carrier and attach it to the parcel yourself.');
 
+    // ----- where to send your parcel (page 2 only; never on the barcode label) -----
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(30, 41, 59);
+    doc.text('Where to send your parcel', mLeft, yy);
+    yy += 7;
+    var aRows = addressRows(whCode);
+    var rowH = 6.4;
+    doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252); doc.setLineWidth(0.4);
+    doc.roundedRect(mLeft, yy - 1, mWidth, aRows.length * rowH + 7, 2, 2, 'FD');
+    yy += 5;
+    for (var ai = 0; ai < aRows.length; ai++) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(100, 116, 139);
+      doc.text(aRows[ai][0], mLeft + 6, yy);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 41, 59);
+      doc.text(String(aRows[ai][1]), mLeft + 40, yy);
+      yy += rowH;
+    }
+    yy += 10;
+
     p2block('Send us your tracking once you have posted it',
       'After your return is approved, reply to the same email thread where you asked to return your product, and include your tracking number and tracking link. We need to see a carrier scan within 7 days of approval, so please post your parcel soon after you hear from us.');
 
@@ -678,17 +771,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
   pdfBtn.addEventListener('click', function(){
     const val = clean(input.value);
-    if(!val) return;
+    const wh = selectedWarehouse();
+    if(!val || !wh) return;
     try{
-      buildPdf(val).save(safeName(val));
+      buildPdf(val, wh).save(safeName(val));
     }catch(e){
       errMsg.textContent = 'Could not generate the PDF: ' + e.message;
     }
   });
 
+  whRadios.forEach(function(r){ r.addEventListener('change', function(){ updateWhHighlight(); updateAddressPreview(); refreshButton(); }); });
   input.addEventListener('input', render);
   input.addEventListener('keydown', function(e){ if(e.key==='Enter' && !pdfBtn.disabled) pdfBtn.click(); });
-  window.addEventListener('load', function(){ document.getElementById('logoImg').src = LOGO; input.focus(); render(); });
+  window.addEventListener('load', function(){ document.getElementById('logoImg').src = LOGO; updateAddressPreview(); input.focus(); render(); });
 })();
 </script>
 </body>
