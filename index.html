@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TFC Returns Label Generator</title>
+<title>TFC Returns Barcode Generator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- Barcode + PDF libraries -->
@@ -482,7 +482,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 <body>
 <div class="wrap">
   <header class="page">
-    <h1>Returns Label Generator</h1>
+    <h1>Returns Barcode Generator</h1>
   </header>
 
   <div class="grid">
@@ -502,7 +502,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <div class="err" id="errMsg"></div>
 
       <div style="margin-top:18px;">
-        <button class="btn btn-primary" id="pdfBtn" disabled>Download PDF label</button>
+        <button class="btn btn-primary" id="pdfBtn" disabled>Download PDF barcode</button>
       </div>
       <div class="footnote">The PDF is sized for an A4 page — the customer just prints and attaches it. No changes needed.</div>
     </section>
@@ -513,7 +513,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <div class="preview-shell">
         <div class="label" id="labelPreview">
           <img class="logo" id="logoImg" alt="The Foot Collective">
-          <div class="label-kind">Returns Label</div>
+          <div class="label-kind">Returns Barcode</div>
           <div class="divider"></div>
           <div class="barcode-area" id="barcodeArea">
             <span class="empty-note">Barcode appears here once you type a number.</span>
@@ -560,20 +560,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       ['Suburb','Chipping Norton'],
       ['State','NSW'],
       ['Postcode','2170'],
-      ['Country','Australia'] ] },
+      ['Country','Australia'],
+      ['Phone','+61 3 8362 4047'] ] },
     UK: { name:'Borderless360 UK', rows:[
       ['Address line 1','Unit A5 Groundwell Ind Estate'],
       ['Address line 2','Stephenson Road'],
       ['Town / City','Swindon'],
       ['Postcode','SN25 5AX'],
-      ['Country','United Kingdom'] ] },
+      ['Country','United Kingdom'],
+      ['Phone','+44 020 3808 9103'] ] },
     USA: { name:'Borderless360 USA', rows:[
       ['Address line 1','1000 North 28th Ave.'],
       ['Address line 2','Ste. 200'],
       ['City','DFW Airport'],
       ['State','TX'],
       ['ZIP code','75261'],
-      ['Country','United States'] ] }
+      ['Country','United States'],
+      ['Phone','+1 (929) 376 0038'] ] }
   };
 
   function addressRows(code){
@@ -666,7 +669,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     doc.setFont('helvetica','bold');
     doc.setTextColor(100,116,139);     // slate-500
     doc.setFontSize(12);
-    doc.text('R E T U R N S   L A B E L', cx, boxY + 36, { align:'center' });
+    doc.text('R E T U R N S   B A R C O D E', cx, boxY + 36, { align:'center' });
 
     // divider
     doc.setDrawColor(226,232,240);     // slate-200
@@ -694,79 +697,79 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     doc.setLineWidth(0.4);
     doc.line(boxX + 14, by + bh + 24, boxX + boxW - 14, by + bh + 24);
 
-    // ----- page 2: instructions for the customer -----
+    // ===== page 2: how to send your return =====
     doc.addPage();
 
-    // logo (smaller) centred at the top
+    // logo centred at the top
     const lp2 = doc.getImageProperties(LOGO);
-    let lw2 = 70;
+    let lw2 = 66;
     let lh2 = lw2 * (lp2.height / lp2.width);
     if (lh2 > 11) { lh2 = 11; lw2 = lh2 * (lp2.width / lp2.height); }
-    doc.addImage(LOGO, 'PNG', cx - lw2 / 2, 22, lw2, lh2);
+    doc.addImage(LOGO, 'PNG', cx - lw2 / 2, 15, lw2, lh2);
 
-    // green accent rule
-    doc.setDrawColor(21, 128, 61);
-    doc.setLineWidth(1.4);
-    doc.line(cx - 11, 22 + lh2 + 5, cx + 11, 22 + lh2 + 5);
+    const cL = 24, cR = 186;
+    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.4);
+    doc.line(cL, 29, cR, 29);
 
-    // heading
-    let yy = 22 + lh2 + 20;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(17);
-    doc.text('A few things to know about your return', cx, yy, { align: 'center' });
+    // title + subtitle
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59); doc.setFontSize(19);
+    doc.text('How to send your return', cx, 41, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139); doc.setFontSize(11);
+    doc.text('Follow these steps before posting your parcel back to us.', cx, 48, { align: 'center' });
 
-    yy += 8;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139);
-    doc.text('A quick read before you post your parcel back to us.', cx, yy, { align: 'center' });
+    // numbered steps
+    const badgeX = 31, textX = 44, textW = cR - textX;
+    let yy = 60;
 
-    // body blocks
-    const mLeft = 30, mWidth = 150;
-    yy += 16;
-    function p2block(title, body) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(30, 41, 59);
-      doc.text(title, mLeft, yy);
-      yy += 6.5;
+    function stepBlock(num, title, body, addrCode) {
+      if (num > 1) { doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.4); doc.line(cL, yy - 5, cR, yy - 5); }
+      const badgeY = yy + 3;
+      doc.setFillColor(30, 41, 59);
+      doc.circle(badgeX, badgeY, 4.6, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+      doc.text(String(num), badgeX, badgeY + 1.4, { align: 'center' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(30, 41, 59);
+      doc.text(title, textX, badgeY + 1.4, { maxWidth: textW });
+      let by2 = badgeY + 9;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(51, 65, 85);
-      const lines = doc.splitTextToSize(body, mWidth);
-      doc.text(lines, mLeft, yy);
-      yy += lines.length * 5.2 + 9;
+      const lines = doc.splitTextToSize(body, textW);
+      doc.text(lines, textX, by2);
+      by2 += lines.length * 5.0;
+      if (addrCode) {
+        by2 += 3;
+        const aRows = addressRows(addrCode);
+        const rowH = 5.6;
+        doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252); doc.setLineWidth(0.4);
+        doc.roundedRect(textX, by2, textW, aRows.length * rowH + 6, 2, 2, 'FD');
+        by2 += 5.5;
+        for (var ai = 0; ai < aRows.length; ai++) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+          doc.text(aRows[ai][0], textX + 6, by2);
+          doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 41, 59);
+          doc.text(String(aRows[ai][1]), textX + 38, by2);
+          by2 += rowH;
+        }
+        by2 += 1.5;
+      }
+      yy = by2 + 8;
     }
 
-    p2block('This label is for our warehouse, not for postage',
-      'The barcode on the first page helps our warehouse receive and match your return when it arrives. It is not a shipping label, and return postage is not pre-paid. You will still need to buy a shipping label from your carrier and attach it to the parcel yourself.');
-
-    // ----- where to send your parcel (page 2 only; never on the barcode label) -----
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5); doc.setTextColor(30, 41, 59);
-    doc.text('Where to send your parcel', mLeft, yy);
-    yy += 7;
-    var aRows = addressRows(whCode);
-    var rowH = 6.4;
-    doc.setDrawColor(226, 232, 240); doc.setFillColor(248, 250, 252); doc.setLineWidth(0.4);
-    doc.roundedRect(mLeft, yy - 1, mWidth, aRows.length * rowH + 7, 2, 2, 'FD');
-    yy += 5;
-    for (var ai = 0; ai < aRows.length; ai++) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(100, 116, 139);
-      doc.text(aRows[ai][0], mLeft + 6, yy);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 41, 59);
-      doc.text(String(aRows[ai][1]), mLeft + 40, yy);
-      yy += rowH;
-    }
-    yy += 10;
-
-    p2block('Send us your tracking once you have posted it',
-      'After your return is approved, reply to the same email thread where you asked to return your product, and include your tracking number and tracking link. We need to see a carrier scan within 7 days of approval, so please post your parcel soon after you hear from us.');
-
-    p2block('Attaching the label',
-      'Attach the label on the first page securely to the outside of your parcel, and keep the barcode flat so it is not covered or folded.');
+    stepBlock(1, 'Step 1 - Go to the post office and purchase a shipping label',
+      'Return postage is not pre-paid. Head to your local post office or carrier of your choice and purchase a shipping label.');
+    stepBlock(2, 'Step 2 - Put the item in a box and attach the shipping label',
+      'Place your item securely in a box and attach the shipping label to the outside of the parcel.');
+    stepBlock(3, 'Step 3 - Copy the delivery address onto your shipping label',
+      'Use the address below as the delivery address on your shipping label. Copy these details exactly.', whCode);
+    stepBlock(4, 'Step 4 - Also attach the Returns Barcode from page 1',
+      'Print page 1 of this document and attach it securely to the outside of your parcel alongside your shipping label. Keep the barcode flat and fully visible. Do not cover or fold it.');
+    stepBlock(5, 'Step 5 - Post your parcel and send us your tracking link via email',
+      'After posting, reply to the same email thread where your return was approved and include your tracking number and tracking link. We need to see a carrier scan within 7 days of approval.');
 
     return doc;
   }
 
   function safeName(val){
-    return 'TFC-Returns-Label-' + val.replace(/[^A-Za-z0-9_-]+/g,'-') + '.pdf';
+    return 'TFC-Returns-Barcode-' + val.replace(/[^A-Za-z0-9_-]+/g,'-') + '.pdf';
   }
 
   pdfBtn.addEventListener('click', function(){
